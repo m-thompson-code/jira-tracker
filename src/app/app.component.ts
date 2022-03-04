@@ -136,6 +136,12 @@ export class AppComponent {
           issues.forEach((issue) => {
             issueMap.set(issue.key, issue);
 
+            if (issue.type === IssueType.EPIC) {
+              if (!epicMap.has(issue.key)) {
+                epicMap.set(issue.key, new Map<string, Issue>());
+              }
+            }
+
             if (issue.epic) {
               if (!epicMap.has(issue.epic)) {
                 epicMap.set(issue.epic, new Map<string, Issue>());
@@ -298,10 +304,32 @@ export class AppComponent {
     )
   }
 
+  zeroOrNaN(value: number): boolean {
+    if (!value) {
+      return true;
+    }
+
+    if (isNaN(value)) {
+      return true;
+    }
+
+    return false;
+  }
+
   getIssue(rawIssue: RawIssue): Issue {
+    const points = +rawIssue.points;
+
+    const pointsHasIssues = this.zeroOrNaN(points);
+
+    if (pointsHasIssues && rawIssue.type !== IssueType.EPIC) {
+      console.warn("Unexpected issue has no points, going to default to .5pt");
+    }
+
+    const useablePoints = pointsHasIssues ? .5 : points;
+
     return {
       ...rawIssue,
-      points: +(rawIssue.points ?? 0),
+      points: useablePoints,
       dependencies: new Map<string, Issue>(),
       nestedDependencies: new Map<string, Issue>(),
       dependencyOf: new Map<string, Issue>(),
@@ -434,8 +462,6 @@ export class AppComponent {
       ({ value }) => value
     );
 
-    console.log(issue, dependencies);
-
     return [
       ...dependencies,
       ...dependencies
@@ -448,19 +474,11 @@ export class AppComponent {
     possibleSubset: Issue[],
     sourceIssues: CapturedIssue[]
   ): CapturedIssue[] {
-    console.log(possibleSubset, sourceIssues);
     const c = possibleSubset
       .map((issue) =>
         sourceIssues.find((sourceIssue) => sourceIssue.value.key === issue.key)
       )
       .filter((issue): issue is CapturedIssue => !!issue);
-
-    console.log(
-      'filterCapturedIssuesBySubset',
-      possibleSubset,
-      sourceIssues,
-      c
-    );
 
     return c;
   }
@@ -528,12 +546,6 @@ export class AppComponent {
 
       if (filteredCapturedNestedDependencies.length !== issue.nestedDependencies.size) {
         skippedIssues.push(issue);
-        console.log(
-          'getBuckets skip',
-          filteredCapturedNestedDependencies,
-          issue.nestedDependencies,
-          skippedIssues
-        );
         return;
       }
 
@@ -553,14 +565,6 @@ export class AppComponent {
 
       const filteredBucket = heaviestBestCaseBucket ?? lightestWorstCaseBucket ?? buckets[0];
 
-      console.log('getBuckets check', {
-        filteredCapturedNestedDependencies,
-        issue,
-        heaviestCapturedDependency,
-        filteredBucket,
-        buckets,
-      });
-
       const weightBefore = Math.max(filteredBucket.weight, minimumNextBucketWeight);
       filteredBucket.weight = weightBefore + issue.points;
 
@@ -571,13 +575,8 @@ export class AppComponent {
       });
 
       pushedIssueToBucket = true;
-
-      buckets.forEach((bucket) => {
-        console.log('weight', bucket.weight, 'issues', bucket.issues);
-      });
     });
 
-    console.log('getBuckets end', skippedIssues, buckets);
     return this.getBuckets(skippedIssues, buckets);
   }
 
