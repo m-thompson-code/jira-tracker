@@ -1,0 +1,121 @@
+$point-width: 100px;
+
+$spacing: 12px;
+
+.buckets {
+    position: relative;
+    width: fit-content;
+    margin: 0 $spacing * 4 $spacing * 6.5;
+}
+
+.marker {
+    pointer-events: none;
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: 1px;
+    height: 100%;
+    border-left: 1px dotted rgba(black, .5);
+
+    .points {
+        position: absolute;
+        left: 0;
+        bottom: -$spacing * 4;
+        transform: translate(-50%, -50%);
+
+        display: flex;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: center;
+        
+        .sprint {
+            position: absolute;
+            left: auto;
+            bottom: -24px;
+            white-space: pre;
+            text-align: center;
+        }
+    }
+
+    &.has-sprint {
+        border-left: 1px solid rgba(black, .5);
+    }
+}
+.marker ~ .marker {
+    transform: translate(-1px, 0);
+}
+
+.issues {
+    position: relative;
+    display: flex;
+    height: $spacing * 6;
+    width: 100%;
+    flex-direction: row;
+    .issue ~ .issue {
+        border-left-width: 0;
+    }
+    margin: $spacing 0;
+}
+
+.issue {
+    cursor: pointer;
+    position: absolute;
+    top: 0;
+    left: 0;
+
+    overflow: hidden;
+    height: $spacing * 6;
+    width: $point-width;
+    border: 1px solid black;
+
+    .issue-padding {
+        padding: $spacing * .5;
+    }
+    
+    .links {
+        white-space: pre;
+    }
+    .summary {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2; /* number of lines to show */
+        line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+    .issue-overlay {
+        background: #90A4AE;
+        position: absolute;
+        z-index: -1;
+        height: 100%;
+        width: 100%;
+        pointer-events: none;
+    }
+    .issue-overlay-highlight {
+        background: white;
+        position: absolute;
+        z-index: -1;
+        height: 100%;
+        width: 100%;
+        pointer-events: none;
+        opacity: 0;
+    }
+    .issue-overlay-highlight.clicked {
+        opacity: .60;
+    }
+    .issue-overlay-highlight.hovered {
+        opacity: .60;
+    }
+    .issue-overlay-highlight.is-dependent {
+        background: black;
+        opacity: .40;
+    }
+    .issue-overlay-highlight.has-dependency {
+        background: white;
+        opacity: .40;
+    }
+}
+.issue.is-dependent {
+    color: white;
+}
