@@ -4,7 +4,7 @@ import * as csv from 'csvtojson';
 import { parse } from 'json2csv';
 import { combineLatest, from, map, Observable, share, startWith, Subject, switchMap, tap } from 'rxjs';
 
-const POINTS_PER_SPRINT = 2;
+const POINTS_PER_SPRINT = 6;
 
 interface CapturedIssue {
   value: Issue;
@@ -123,9 +123,6 @@ export class AppComponent {
         map((rawIssues) =>
           rawIssues.map((rawIssue) => this.getIssue(rawIssue))
         ),
-        map((issues) => {
-          return issues.slice(0).sort(this.compareIssues.bind(this));
-        }),
         map((issues) => {
           return issues.slice(0).sort(this.compareIssueDependencies.bind(this));
         }),
@@ -450,7 +447,12 @@ export class AppComponent {
   }
 
   compareIssueDependencies(a: Issue, b: Issue): number {
-    return b.nestedDependencyOf.size - a.nestedDependencyOf.size;
+    const nestedDependencyOfDelta = b.nestedDependencyOf.size - a.nestedDependencyOf.size;
+    if (nestedDependencyOfDelta) {
+      return nestedDependencyOfDelta;
+    }
+
+    return this.compareIssues(a, b);
   }
 
   getFlattenedDependencies(issue: Issue): Issue[] {
@@ -474,13 +476,11 @@ export class AppComponent {
     possibleSubset: Issue[],
     sourceIssues: CapturedIssue[]
   ): CapturedIssue[] {
-    const c = possibleSubset
+    return possibleSubset
       .map((issue) =>
         sourceIssues.find((sourceIssue) => sourceIssue.value.key === issue.key)
       )
       .filter((issue): issue is CapturedIssue => !!issue);
-
-    return c;
   }
 
   getNestedIssueIncludesDependency(
@@ -518,7 +518,7 @@ export class AppComponent {
     }));
   }
 
-  getBuckets(issues: Issue[], buckets = this.getEmptyBuckets(10)): Bucket[] {
+  getBuckets(issues: Issue[], buckets = this.getEmptyBuckets(10), threshold = 0): Bucket[] {
     const sortedIssues = issues.slice(0).sort(this.compareIssues.bind(this)).sort(this.compareIssueDependencies.bind(this))
 
     if (!sortedIssues.length) {
@@ -528,6 +528,7 @@ export class AppComponent {
     const skippedIssues: Issue[] = [];
 
     let pushedIssueToBucket = false;
+    let _threshold = threshold;
 
     sortedIssues.forEach((issue) => {
       if (pushedIssueToBucket) {
@@ -566,6 +567,20 @@ export class AppComponent {
       const filteredBucket = heaviestBestCaseBucket ?? lightestWorstCaseBucket ?? buckets[0];
 
       const weightBefore = Math.max(filteredBucket.weight, minimumNextBucketWeight);
+
+      const thresholdDelta = minimumNextBucketWeight - filteredBucket.weight;
+
+      if (thresholdDelta > _threshold) {
+        skippedIssues.push(issue);
+        return;
+      }
+
+      if (filteredBucket.weight === minimumNextBucketWeight) {
+        console.log(filteredBucket.weight, minimumNextBucketWeight);
+      } else {
+        console.warn(filteredBucket.weight, minimumNextBucketWeight);
+      }
+
       filteredBucket.weight = weightBefore + issue.points;
 
       filteredBucket.issues.push({
@@ -575,9 +590,10 @@ export class AppComponent {
       });
 
       pushedIssueToBucket = true;
+      _threshold = 0;
     });
 
-    return this.getBuckets(skippedIssues, buckets);
+    return this.getBuckets(skippedIssues, buckets, _threshold + 1);
   }
 
   getArrayFromMap<K, V>(mapInstance: Map<K, V>): { key: K; value: V }[] {

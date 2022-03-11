@@ -1,0 +1,14 @@
+<label for="file-input">Moocow</label>
+
+<input
+  #input
+  class="file-input"
+  type="file"
+  id="file-input"
+  name="file-input"
+  accept=".csv"
+  (change)="handleFileInputChange($event)"
+  (dragover)="handleDragover($event)"
+  (dragleave)="handleDragend($event)"
+  (drop)="handleFileInputDrop($event)"
+/>
